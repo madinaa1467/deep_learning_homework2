@@ -246,7 +246,7 @@ test_data = MyDataset(test_labels, test_path, test_transform )
 
 
 
-# In[60]:
+# In[64]:
 
 
 class Net(nn.Module):
@@ -261,7 +261,7 @@ class Net(nn.Module):
         self.conv2 = nn.Conv2d(10, 20, kernel_size=3)
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(720, 1024)
-        self.fc2 = nn.Linear(1024, 2)
+        self.fc2 = nn.Linear(1024, 5)
 
     def forward(self, x):
         # define forward propagation here
@@ -281,7 +281,7 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[52]:
+# In[67]:
 
 
 def train(model, device, train_loader, optimizer, epoch):
@@ -297,13 +297,11 @@ def train(model, device, train_loader, optimizer, epoch):
 #         loss = F.nll_loss(output, target)
 #         loss.backward()
 #         optimizer.step()
-        
+
+        criterion = nn.CrossEntropyLoss()
         loss = criterion(output, target)
-        # backward-pass: compute-gradient-of-the-loss-wrt-model-parameters
         loss.backward()
-        # perform-a-ingle-optimization-step (parameter-update)
         optimizer.step()
-        # update-training-loss
         train_loss += loss.item() * data.size(0)
         
         
@@ -311,6 +309,51 @@ def train(model, device, train_loader, optimizer, epoch):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
+            
+def loadDatabase():
+    train_dataset = datasets.ImageFolder(
+        root=train_path,
+        transform=transforms.ToTensor()
+    )
+    test_dataset = datasets.ImageFolder(
+        root=test_path,
+        transform=transforms.ToTensor()
+    )
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=64,
+        num_workers=0,
+        shuffle=True
+    )
+    test_loader = DataLoader(
+        train_dataset,
+        batch_size=64,
+        num_workers=0,
+        shuffle=True
+    )
+    return train_loader, test_loader
+
+# for batch_idx, (data, target) in enumerate(load_dataset()):
+#     print(batch_idx)
+    
+def main():
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+
+    batch_size = 25 
+    
+    train_loader, test_loader = loadDatabase()
+
+    model = Net().to(device)
+#     optimizer = torch.optim.Adam(model.parameters(),lr = learning_rate)
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
+
+    for epoch in range(1, 10+ 1):
+        train(model, device, train_loader, optimizer, epoch)
+        test(model, device, test_loader)
+
+if __name__ == '__main__':
+    main()
 
 
 # In[48]:
@@ -427,6 +470,8 @@ def main():
     train_loader = load_dataset()
 
     model = Net().to(device)
+    criterion = nn.CrossEntropyLoss()
+#     optimizer = torch.optim.Adam(model.parameters(),lr = learning_rate)
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
 
     for epoch in range(1, 2):
