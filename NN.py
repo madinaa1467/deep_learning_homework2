@@ -34,7 +34,7 @@ import matplotlib.image as img
 
 def findFiles(path): return glob.glob(path)
 
-def loadDatabase(path, outputFile, isTrain):
+def createLabels(path, outputFile, isTrain):
     classes = ['airplane', 'bird', 'dog', 'frog', 'horse']
     df = pd.DataFrame(columns=['id', 'label'])
     
@@ -55,15 +55,8 @@ def loadDatabase(path, outputFile, isTrain):
 #     return df
 
 
-loadDatabase(r'data/data1/train/*/', r'data/data1/train.csv', True)
-loadDatabase(r'data/data1/test/', r'data/data1/test.csv', False)
-
-train_path = r'data/data1/train/'
-test_path = r'data/data1/test/'
-
-
-train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
-test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+createLabels(r'data/data1/train/*/', r'data/data1/train.csv', True)
+createLabels(r'data/data1/test/', r'data/data1/test.csv', False)
 
 
 # In[38]:
@@ -130,104 +123,100 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[41]:
+# In[67]:
 
 
-def test(model, device, test_loader):
+def validate(model, device, validation_loader, criterion):
     model.eval()
-    test_loss = 0
+    valid_loss = 0
     correct = 0
     with torch.no_grad():
-        for data, target in test_loader:
+        for data, target in validation_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
+#             valid_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
+            valid_loss += criterion(output, target).item() * data.size(0)
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
-
-    test_loss /= len(test_loader.dataset)
-
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
-
-
-# In[42]:
-
-
-def train(model, device, train_loader, optimizer, epoch):
-    model.train()
+    valid_loss /= len(validation_loader.dataset)
     
-    train_loss = 0.0
-    valid_loss = 0.0
-#     for data, target in train_loader:
-    for data, target in train_loader:
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        valid_loss, correct, len(validation_loader.dataset),
+        100. * correct / len(validation_loader.dataset)))
+    
+    return valid_loss
+        
+
+
+# In[69]:
+
+
+def train(model, device, train_loader, optimizer, criterion, epoch):
+    model.train()
+    train_loss = 0
+    for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        
-        criterion = nn.CrossEntropyLoss()
+#         loss = F.nll_loss(output, target)
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
         train_loss += loss.item() * data.size(0)
         
-        
-#         if batch_idx % 10 == 0:
-#             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-#                 epoch, batch_idx * len(data), len(train_loader.dataset),
-#                 100. * batch_idx / len(train_loader), loss.item()))
+        if batch_idx % 10 == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
+    return loss.item()
             
 def loadDatabase():
     
-    
-    train_data, valid_data = train_test_split(train_labels, stratify=train_labels.label, test_size=0.1)
+    train_path = r'data/data1/train/'
+    test_path = r'data/data1/test/'
+
+    train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
+    test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+
+    train_data, validation_data = train_test_split(train_labels, stratify=train_labels.label, test_size=0.1)
     
     train_data = MyDataset(train_data, train_path, transforms.ToTensor() )
-    valid_data = MyDataset(valid_data, train_path, transforms.ToTensor() )
+    validation_data = MyDataset(validation_data, train_path, transforms.ToTensor() )
     test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
 
 
-#     train_dataset = datasets.ImageFolder(
-#         root=train_path,
-#         transform=transforms.ToTensor()
-#     )
-#     test_dataset = datasets.ImageFolder(
-#         root=test_path,
-#         transform=transforms.ToTensor()
-#     )
-    train_loader = DataLoader(
-        train_data,
-        batch_size=64,
-        num_workers=0,
-        shuffle=True
-    )
-    test_loader = DataLoader(
-        test_data,
-        batch_size=64,
-        num_workers=0,
-        shuffle=True
-    )
-    return train_loader, test_loader
-
-# for batch_idx, (data, target) in enumerate(load_dataset()):
-#     print(batch_idx)
+    train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
+    validation_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=1000, num_workers=0, shuffle=True)
+    
+    return train_loader, validation_loader, test_loader
     
 def main():
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    batch_size = 25 
-    
-    train_loader, test_loader = loadDatabase()
+    train_loader, validation_loader, test_loader = loadDatabase()
 
     model = Net().to(device)
-#     optimizer = torch.optim.Adam(model.parameters(),lr = learning_rate)
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
+    
+    optimizer = torch.optim.Adam(model.parameters(),lr = 0.001)
+    criterion = nn.CrossEntropyLoss()
 
-    for epoch in range(1, 10+ 1):
-        train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
+    counter, train_losses, valid_losses = [], [], []
+
+    for epoch in range(1, 35 + 1):
+        
+        train_losses.append( train(model, device, train_loader, optimizer, criterion, epoch) )
+        valid_losses.append( validate(model, device, validation_loader, criterion) )
+        counter.append(epoch)
+    
+    plt.figure(figsize=(9, 6))
+    plt.ylabel("Loss")
+    plt.xlabel("Number of Epochs")
+    plt.plot(counter, train_losses, "r", label = "Train loss")
+    plt.plot(counter, valid_losses, "b", label = "Validation loss")
+    plt.title("Loss")
+    plt.show()
 
 if __name__ == '__main__':
     main()
