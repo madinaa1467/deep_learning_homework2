@@ -29,28 +29,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as img
 
 
-# In[2]:
-
-
-# def findFiles(path): return glob.glob(path)
-
-# def loadImages(path):
-# #     imagesList = listdir(path)
-#     imagesList = [f for f in findFiles(path + '*.png')]
-#     loadedImages = []
-#     for image in imagesList:
-#         img = PImage.open(image) #path + image
-#         loadedImages.append(img)
-#     return loadedImages
-
-# path = "data/test/"
-# imgs = loadImages(path)
-
-# for img in imgs:
-# #     img.show()
-#     print(img)
-
-
 # In[3]:
 
 
