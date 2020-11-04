@@ -29,6 +29,12 @@ import matplotlib.pyplot as plt
 import matplotlib.image as img
 
 
+# In[ ]:
+
+
+# tes
+
+
 # In[3]:
 
 
