@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as img
 
 
-# In[ ]:
+# In[4]:
 
 
 # test5
@@ -37,43 +37,48 @@ import matplotlib.image as img
 # 888
 
 
-# In[3]:
+# In[25]:
 
 
 def findFiles(path): return glob.glob(path)
 
-def loadDatabase(path, outputfile):
+def loadDatabase(path, outputFile, isTrain):
     classes = ['airplane', 'bird', 'dog', 'frog', 'horse']
     df = pd.DataFrame(columns=['id', 'label'])
     
 #     print(findFiles(path + '*.png'))
-    
     # for i, class in enumerate(classes):
-    for filename in findFiles(path + '*.png'):
+    
+    for filename in findFiles(path + '/*.png'):
+        
         file = os.path.basename(filename)
         img_class = os.path.basename(filename).split('_')[1].split('.')[0]
+        
+        if isTrain:
+            file = os.path.basename(os.path.dirname(filename)) + '/' + file
+        
         df = df.append({'id': file, 'label': classes.index(img_class)}, ignore_index=True)
 
-    df.to_csv(outputfile)
+    df.to_csv(outputFile)
     return df
 
-# test = loadDatabase(r'data/test/', 'data/test.csv')
+# test = loadDatabase(r'data/test/', 'test')
 
-train_path = r'data/data1/train/*/'
+train_labels = loadDatabase(r'data/data1/train/*/', r'data/data1/train.csv', True)
+test_labels = loadDatabase(r'data/data1/test/', r'data/data1/test.csv', False)
+
+train_path = r'data/data1/train/'
 test_path = r'data/data1/test/'
 
-train_labels = loadDatabase(train_path, r'data/data1/train.csv')
-test_labels = loadDatabase(test_path, r'data/data1/test.csv')
 
-
-# In[4]:
+# In[26]:
 
 
 # train_labels = pd.read_csv(r'data/data1/train.csv')
 # test_labels = pd.read_csv(r'data/data1/test.csv')
 
 
-# In[5]:
+# In[27]:
 
 
 # train_labels['label'].value_counts()
@@ -85,7 +90,7 @@ test_labels = loadDatabase(test_path, r'data/data1/test.csv')
 # plt.show()
 
 
-# In[6]:
+# In[28]:
 
 
 # fig,ax = plt.subplots(1,5,figsize = (15,3))
@@ -140,7 +145,7 @@ class MyDataset(Dataset):
         return image, label
 
 
-# In[7]:
+# In[29]:
 
 
 # Normalization
@@ -161,7 +166,7 @@ valid_data = MyDataset(valid_data, train_path, valid_transform )
 test_data = MyDataset(test_labels, test_path, test_transform )
 
 
-# In[8]:
+# In[30]:
 
 
 class Net(nn.Module):
@@ -185,15 +190,15 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[9]:
+# In[34]:
 
 
 def train(model, device, train_loader, optimizer, epoch):
     model.train()
     batch_idx = 0
     print(train_loader)
-    for i, a, data, target in train_loader:
-        print(i, a, data, target )
+    for data, target in train_loader:
+        print(data, target )
         
 #         data, target = data.to(device), target.to(device)
 #         optimizer.zero_grad()
@@ -210,7 +215,7 @@ def train(model, device, train_loader, optimizer, epoch):
 #                 100. * batch_idx / len(train_loader), loss.item()))
 
 
-# In[10]:
+# In[32]:
 
 
 def test(model, device, test_loader):
@@ -232,7 +237,7 @@ def test(model, device, test_loader):
         100. * correct / len(test_loader.dataset)))
 
 
-# In[11]:
+# In[35]:
 
 
 def main():
