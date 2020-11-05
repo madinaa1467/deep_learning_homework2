@@ -123,15 +123,15 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[85]:
+# In[102]:
 
 
-class Block_of_net(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
-        super(Block_of_net, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size, 1, padding)
+class ResNetBasicBlock(nn.Module):
+    def __init__(self, in_ch, out_ch, kernel_size, stride, padding):
+        super(ResNetBasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size, stride, padding)
+        self.bn = nn.BatchNorm2d(out_ch)
+        self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size, 1, padding)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -144,71 +144,71 @@ class Block_of_net(nn.Module):
 
 # 3 blocks -- 6 convs -- of one map size with shortcuts after each block
 # shorcut before non-linearity
-class ResBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(ResBlock, self).__init__()
-        self.in_ch = in_channels
-        self.out_ch = out_channels
-        self.proj = nn.Conv2d(in_channels, out_channels, 1, 2)
-        self.bn_proj = nn.BatchNorm2d(out_channels)
-        if (in_channels == out_channels):
-            self.bl1 = Block_of_net(in_channels, out_channels, 3, 1, 1)
+class ResNetBlock(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(ResNetBlock, self).__init__()
+        self.in_ch = in_ch
+        self.out_ch = out_ch   
+        self.proj = nn.Conv2d(in_ch, out_ch, 1, 2)
+        self.bn_proj = nn.BatchNorm2d(out_ch)
+        
+        if (in_ch == out_ch):
+            self.block1 = ResNetBasicBlock(in_ch, out_ch, 3, 1, 1)
         else:
-            self.bl1 = Block_of_net(in_channels, out_channels, 3, 2, 1)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.bl2 = Block_of_net(out_channels, out_channels, 3, 1, 1)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.bl3 = Block_of_net(out_channels, out_channels, 3, 1, 1)
-        self.bn3 = nn.BatchNorm2d(out_channels)
+            self.block1 = ResNetBasicBlock(in_ch, out_ch, 3, 2, 1)
+        self.bn1 = nn.BatchNorm2d(out_ch)
+        self.block2 = ResNetBasicBlock(out_ch, out_ch, 3, 1, 1)
+        self.bn2 = nn.BatchNorm2d(out_ch)
+        self.block3 = ResNetBasicBlock(out_ch, out_ch, 3, 1, 1)
+        self.bn3 = nn.BatchNorm2d(out_ch)
 
     def forward(self, x):
-        out = x
 
         if (self.in_ch == self.out_ch):
-            shortcut1 = out.clone()
+            shortcut1 = x.clone()
         else:
-            shortcut1 = self.proj(out)
-        out = self.bl1(out)
-        out += shortcut1
-        out = self.bn1(out)
-        out = F.relu(out)
+            shortcut1 = self.proj(x)
+        x = self.block1(x)
+        x += shortcut1
+        x = self.bn1(x)
+        x = F.relu(x)
 
-        shortcut2 = out.clone()
-        out = self.bl2(out)
-        out += shortcut2
-        out = self.bn2(out)
-        out = F.relu(out)
+        shortcut2 = x.clone()
+        x = self.block2(x)
+        x += shortcut2
+        x = self.bn2(x)
+        x = F.relu(x)
 
-        shortcut3 = out.clone()
-        out = self.bl3(out)
-        out += shortcut3
-        out = self.bn3(out)
+        shortcut3 = x.clone()
+        x = self.block3(x)
+        x += shortcut3
+        x = self.bn3(x)
 
-        return out
+        return x
 
 class ResNet(nn.Module):
     def __init__(self):
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, 3, 1, 1)
         self.bn0 = nn.BatchNorm2d(16)
-        self.res_block1 = ResBlock(16, 32)
-        self.res_block2 = ResBlock(32, 64)
-#         self.res_block3 = ResBlock(32, 64)
+        self.res_block1 = ResNetBlock(16, 32)
+        self.res_block2 = ResNetBlock(32, 64)
+#         self.res_block3 = ResNetBlock(32, 64)
         self.agP = nn.AvgPool2d(8)
         self.fc = nn.Linear(64, 10)
 
     def forward(self, x):
-        out = F.relu(self.bn0(self.conv1(x)))
+        x = F.relu(self.bn0(self.conv1(x)))
 
-        out = F.relu(self.res_block1(out))
-        out = F.relu(self.res_block2(out))
-#         out = F.relu(self.res_block3(out))
+        x = F.relu(self.res_block1(x))
+        x = F.relu(self.res_block2(x))
+#         x = F.relu(self.res_block3(x))
 
-        out = self.agP(out)
-        out = out.view(-1, 64)
-        out = self.fc(out)
+        x = self.agP(x)
+        x = x.view(-1, 64)
+        x = self.fc(x)
 
-        return out
+        return x
 
 
 # In[74]:
@@ -260,13 +260,13 @@ def test(model, device, test_loader):
     torch.save(model.state_dict(), 'model.ckpt')
 
 
-# In[79]:
+# In[114]:
 
 
 test_path = r'data/data1/test/'
 test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
 test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
-test_loader = DataLoader(test_data, batch_size=1000, num_workers=0, shuffle=True)
+test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
 total = 0
 counter = 0
 for images, labels in test_loader:
@@ -276,7 +276,21 @@ for images, labels in test_loader:
     print(labels.size(0), ' = ', total)
 
 
-# In[80]:
+# In[112]:
+
+
+train_path = r'data/data1/train/'
+train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
+train_data = MyDataset(train_labels, train_path, transforms.ToTensor() )
+train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
+total = 0
+counter = 0
+for batch_idx, (data, target) in enumerate(train_loader):
+#     print(counter, batch_idx)
+    counter += 1
+
+
+# In[113]:
 
 
 def train(model, device, train_loader, optimizer, criterion, epoch):
@@ -292,7 +306,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
         optimizer.step()
         train_loss += loss.item() * data.size(0)
         
-        if batch_idx % 10 == 0:
+        if batch_idx % 20 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
@@ -315,83 +329,7 @@ def loadDatabase():
 
     train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
     validation_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=1000, num_workers=0, shuffle=True)
-    
-    return train_loader, validation_loader, test_loader
-    
-def main():
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-
-    train_loader, validation_loader, test_loader = loadDatabase()
-
-    model = Net().to(device)
-    
-    optimizer = torch.optim.Adam(model.parameters(),lr = 0.001)
-    criterion = nn.CrossEntropyLoss()
-
-    counter, train_losses, valid_losses = [], [], []
-
-    for epoch in range(1, 2 + 1):
-        
-        train_losses.append( train(model, device, train_loader, optimizer, criterion, epoch) )
-        valid_losses.append( validate(model, device, validation_loader, criterion) )
-        counter.append(epoch)
-    
-    plt.figure(figsize=(9, 6))
-    plt.ylabel("Loss")
-    plt.xlabel("Number of Epochs")
-    plt.plot(counter, train_losses, "r", label = "Train loss")
-    plt.plot(counter, valid_losses, "b", label = "Validation loss")
-    plt.title("Loss")
-    plt.show()
-    
-    test(model, device, test_loader)
-
-if __name__ == '__main__':
-    main()
-
-
-# In[88]:
-
-
-def train(model, device, train_loader, optimizer, criterion, epoch):
-    model.train()
-    train_loss = 0
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-#         loss = F.nll_loss(output, target)
-        loss = criterion(output, target)
-        loss.backward()
-        optimizer.step()
-        train_loss += loss.item() * data.size(0)
-        
-        if batch_idx % 10 == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
-    return loss.item()
-            
-def loadDatabase():
-    
-    train_path = r'data/data1/train/'
-    test_path = r'data/data1/test/'
-
-    train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
-    test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
-
-    train_data, validation_data = train_test_split(train_labels, stratify=train_labels.label, test_size=0.1)
-    
-    train_data = MyDataset(train_data, train_path, transforms.ToTensor() )
-    validation_data = MyDataset(validation_data, train_path, transforms.ToTensor() )
-    test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
-
-
-    train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
-    validation_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=1000, num_workers=0, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
     
     return train_loader, validation_loader, test_loader
     
@@ -423,9 +361,18 @@ def main():
     plt.show()
     
     test(model, device, test_loader)
-
+    
 if __name__ == '__main__':
     main()
+
+
+# In[101]:
+
+
+# use_cuda = torch.cuda.is_available()
+# device = torch.device("cuda" if use_cuda else "cpu")
+# model = ResNet().to(device)
+# model.summary()
 
 
 # In[ ]:
