@@ -123,7 +123,7 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[67]:
+# In[74]:
 
 
 def validate(model, device, validation_loader, criterion):
@@ -140,7 +140,7 @@ def validate(model, device, validation_loader, criterion):
             correct += pred.eq(target.view_as(pred)).sum().item()
     valid_loss /= len(validation_loader.dataset)
     
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\nValidation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         valid_loss, correct, len(validation_loader.dataset),
         100. * correct / len(validation_loader.dataset)))
     
@@ -148,7 +148,47 @@ def validate(model, device, validation_loader, criterion):
         
 
 
-# In[69]:
+# In[72]:
+
+
+def test(model, device, test_loader):
+    # test-the-model
+    model.eval()  # it-disables-dropout
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        print('\nTest set: Accuracy: {}/{} ({:.0f}%)'.format(
+            correct, total, 100. * correct / total))
+
+    # Save 
+    torch.save(model.state_dict(), 'model.ckpt')
+
+
+# In[79]:
+
+
+test_path = r'data/data1/test/'
+test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
+test_loader = DataLoader(test_data, batch_size=1000, num_workers=0, shuffle=True)
+total = 0
+counter = 0
+for images, labels in test_loader:
+    counter += 1
+    print(counter)
+    total += labels.size(0)
+    print(labels.size(0), ' = ', total)
+
+
+# In[73]:
 
 
 def train(model, device, train_loader, optimizer, criterion, epoch):
@@ -204,7 +244,7 @@ def main():
 
     counter, train_losses, valid_losses = [], [], []
 
-    for epoch in range(1, 35 + 1):
+    for epoch in range(1, 10 + 1):
         
         train_losses.append( train(model, device, train_loader, optimizer, criterion, epoch) )
         valid_losses.append( validate(model, device, validation_loader, criterion) )
@@ -217,7 +257,35 @@ def main():
     plt.plot(counter, valid_losses, "b", label = "Validation loss")
     plt.title("Loss")
     plt.show()
+    
+    test(model, device, test_loader)
 
 if __name__ == '__main__':
     main()
+
+
+# In[ ]:
+
+
+# train, test, val
+# https://machinelearningmastery.com/difference-test-validation-datasets/
+# split data
+data = ...
+train, test = split(data)
+
+# tune model hyperparameters
+parameters = ...
+k = ...
+for params in parameters:
+	skills = list()
+	for i in k:
+		fold_train, fold_val = cv_split(i, k, train)
+		model = fit(fold_train, params)
+		skill_estimate = evaluate(model, fold_val)
+		skills.append(skill_estimate)
+	skill = summarize(skills)
+
+# evaluate final model for comparison with other models
+model = fit(train)
+skill = evaluate(model, test)
 
