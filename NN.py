@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import matplotlib.image as img
 
 
-# In[37]:
+# In[2]:
 
 
 def findFiles(path): return glob.glob(path)
@@ -59,13 +59,13 @@ createLabels(r'data/data1/train/*/', r'data/data1/train.csv', True)
 createLabels(r'data/data1/test/', r'data/data1/test.csv', False)
 
 
-# In[38]:
+# In[3]:
 
 
 # print(train_labels)
 
 
-# In[39]:
+# In[4]:
 
 
 class MyDataset(Dataset):
@@ -81,14 +81,13 @@ class MyDataset(Dataset):
     def __getitem__(self,index):
         img_name,label = self.data[index]
         img_path = os.path.join(self.path, img_name)
-#         image = img.imread(img_path)
         image = PImage.open(img_path)
         if self.transform is not None:
             image = self.transform(image)
         return image, label
 
 
-# In[40]:
+# In[5]:
 
 
 class Net(nn.Module):
@@ -123,7 +122,7 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[102]:
+# In[6]:
 
 
 class ResNetBasicBlock(nn.Module):
@@ -211,86 +210,7 @@ class ResNet(nn.Module):
         return x
 
 
-# In[74]:
-
-
-def validate(model, device, validation_loader, criterion):
-    model.eval()
-    valid_loss = 0
-    correct = 0
-    with torch.no_grad():
-        for data, target in validation_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-#             valid_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
-            valid_loss += criterion(output, target).item() * data.size(0)
-            pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
-    valid_loss /= len(validation_loader.dataset)
-    
-    print('\nValidation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        valid_loss, correct, len(validation_loader.dataset),
-        100. * correct / len(validation_loader.dataset)))
-    
-    return valid_loss
-        
-
-
-# In[72]:
-
-
-def test(model, device, test_loader):
-    # test-the-model
-    model.eval()  # it-disables-dropout
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for images, labels in test_loader:
-            images = images.to(device)
-            labels = labels.to(device)
-            outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-        print('\nTest set: Accuracy: {}/{} ({:.0f}%)'.format(
-            correct, total, 100. * correct / total))
-
-    # Save 
-    torch.save(model.state_dict(), 'model.ckpt')
-
-
-# In[114]:
-
-
-test_path = r'data/data1/test/'
-test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
-test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
-test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
-total = 0
-counter = 0
-for images, labels in test_loader:
-    counter += 1
-    print(counter)
-    total += labels.size(0)
-    print(labels.size(0), ' = ', total)
-
-
-# In[112]:
-
-
-train_path = r'data/data1/train/'
-train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
-train_data = MyDataset(train_labels, train_path, transforms.ToTensor() )
-train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
-total = 0
-counter = 0
-for batch_idx, (data, target) in enumerate(train_loader):
-#     print(counter, batch_idx)
-    counter += 1
-
-
-# In[113]:
+# In[7]:
 
 
 def train(model, device, train_loader, optimizer, criterion, epoch):
@@ -311,7 +231,77 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
     return loss.item()
-            
+       
+def validate(model, device, validation_loader, criterion):
+    model.eval()
+    valid_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for data, target in validation_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+#             valid_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
+            valid_loss += criterion(output, target).item() * data.size(0)
+            pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+            correct += pred.eq(target.view_as(pred)).sum().item()
+    valid_loss /= len(validation_loader.dataset)
+    
+    print('\nValidation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        valid_loss, correct, len(validation_loader.dataset),
+        100. * correct / len(validation_loader.dataset)))
+    return valid_loss
+
+def test(model, device, test_loader):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        print('\nTest set: Accuracy: {}/{} ({:.0f}%)'.format(
+            correct, total, 100. * correct / total))
+    torch.save(model.state_dict(), 'model.ckpt')    
+
+
+# In[ ]:
+
+
+test_path = r'data/data1/test/'
+test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
+test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
+total = 0
+counter = 0
+for images, labels in test_loader:
+    counter += 1
+    print(counter)
+    total += labels.size(0)
+    print(labels.size(0), ' = ', total)
+
+
+# In[ ]:
+
+
+train_path = r'data/data1/train/'
+train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
+train_data = MyDataset(train_labels, train_path, transforms.ToTensor() )
+train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
+total = 0
+counter = 0
+for batch_idx, (data, target) in enumerate(train_loader):
+#     print(counter, batch_idx)
+    counter += 1
+
+
+# In[ ]:
+
+
 def loadDatabase():
     
     train_path = r'data/data1/train/'
@@ -366,7 +356,7 @@ if __name__ == '__main__':
     main()
 
 
-# In[101]:
+# In[ ]:
 
 
 # use_cuda = torch.cuda.is_available()
