@@ -28,6 +28,12 @@ from PIL import Image as PImage
 import matplotlib.pyplot as plt 
 import matplotlib.image as img
 
+import importlib
+
+# sam = input('sam')
+# importlib.import_module('sam')
+from sam.sam import *
+
 
 # In[2]:
 
@@ -87,7 +93,7 @@ class MyDataset(Dataset):
         return image, label
 
 
-# In[5]:
+# In[ ]:
 
 
 class Net(nn.Module):
@@ -122,7 +128,7 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-# In[6]:
+# In[11]:
 
 
 class ResNetBasicBlock(nn.Module):
@@ -190,30 +196,137 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, 3, 1, 1)
         self.bn0 = nn.BatchNorm2d(16)
-        self.res_block1 = ResNetBlock(16, 32)
-        self.res_block2 = ResNetBlock(32, 64)
-#         self.res_block3 = ResNetBlock(32, 64)
-        self.agP = nn.AvgPool2d(8)
+#         self.resBlock1 = ResNetBlock(16, 32)
+#         self.resBlock2 = ResNetBlock(32, 64)
+        self.resBlock1 = ResNetBlock(16, 16)
+        self.resBlock2 = ResNetBlock(16, 32)
+        self.resBlock3 = ResNetBlock(32, 64)
+        self.avgPool = nn.AvgPool2d(8)
         self.fc = nn.Linear(64, 10)
 
     def forward(self, x):
         x = F.relu(self.bn0(self.conv1(x)))
 
-        x = F.relu(self.res_block1(x))
-        x = F.relu(self.res_block2(x))
-#         x = F.relu(self.res_block3(x))
+        x = F.relu(self.resBlock1(x))
+        x = F.relu(self.resBlock2(x))
+        x = F.relu(self.resBlock3(x))
 
-        x = self.agP(x)
+        x = self.avgPool(x)
         x = x.view(-1, 64)
         x = self.fc(x)
 
         return x
 
 
-# In[7]:
+# In[ ]:
 
 
-def train(model, device, train_loader, optimizer, criterion, epoch):
+# class BasicBlock(nn.Module):
+#     expansion = 1
+
+#     def __init__(self, in_planes, planes, stride=1):
+#         super(BasicBlock, self).__init__()
+#         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+#         self.bn1 = nn.BatchNorm2d(planes)
+#         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+#         self.bn2 = nn.BatchNorm2d(planes)
+
+#         self.shortcut = nn.Sequential()
+#         if stride != 1 or in_planes != self.expansion*planes:
+#             self.shortcut = nn.Sequential(
+#                 nn.Conv2d(in_planes, self.expansion*planes, kernel_size=1, stride=stride, bias=False),
+#                 nn.BatchNorm2d(self.expansion*planes)
+#             )
+
+#     def forward(self, x):
+#         out = F.relu(self.bn1(self.conv1(x)))
+#         out = self.bn2(self.conv2(out))
+#         out += self.shortcut(x)
+#         out = F.relu(out)
+#         return out
+
+
+# class Bottleneck(nn.Module):
+#     expansion = 4
+
+#     def __init__(self, in_planes, planes, stride=1):
+#         super(Bottleneck, self).__init__()
+#         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
+#         self.bn1 = nn.BatchNorm2d(planes)
+#         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+#         self.bn2 = nn.BatchNorm2d(planes)
+#         self.conv3 = nn.Conv2d(planes, self.expansion*planes, kernel_size=1, bias=False)
+#         self.bn3 = nn.BatchNorm2d(self.expansion*planes)
+
+#         self.shortcut = nn.Sequential()
+#         if stride != 1 or in_planes != self.expansion*planes:
+#             self.shortcut = nn.Sequential(
+#                 nn.Conv2d(in_planes, self.expansion*planes, kernel_size=1, stride=stride, bias=False),
+#                 nn.BatchNorm2d(self.expansion*planes)
+#             )
+
+#     def forward(self, x):
+#         out = F.relu(self.bn1(self.conv1(x)))
+#         out = F.relu(self.bn2(self.conv2(out)))
+#         out = self.bn3(self.conv3(out))
+#         out += self.shortcut(x)
+#         out = F.relu(out)
+#         return out
+
+
+# class ResNet(nn.Module):
+#     def __init__(self, block, num_blocks, num_classes=10):
+#         super(ResNet, self).__init__()
+#         self.in_planes = 64
+
+#         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+#         self.bn1 = nn.BatchNorm2d(64)
+#         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
+#         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+#         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
+#         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
+#         self.linear = nn.Linear(512*block.expansion, num_classes)
+
+#     def _make_layer(self, block, planes, num_blocks, stride):
+#         strides = [stride] + [1]*(num_blocks-1)
+#         layers = []
+#         for stride in strides:
+#             layers.append(block(self.in_planes, planes, stride))
+#             self.in_planes = planes * block.expansion
+#         return nn.Sequential(*layers)
+
+#     def forward(self, x):
+#         out = F.relu(self.bn1(self.conv1(x)))
+#         out = self.layer1(out)
+#         out = self.layer2(out)
+#         out = self.layer3(out)
+#         out = self.layer4(out)
+#         out = F.avg_pool2d(out, 4)
+#         out = out.view(out.size(0), -1)
+#         out = self.linear(out)
+#         return out
+
+
+# def ResNet18():
+#     return ResNet(BasicBlock, [2,2,2,2])
+
+# def ResNet34():
+#     return ResNet(BasicBlock, [3,4,6,3])
+
+# def ResNet50():
+#     return ResNet(Bottleneck, [3,4,6,3])
+
+# def ResNet101():
+#     return ResNet(Bottleneck, [3,4,23,3])
+
+# def ResNet152():
+#     return ResNet(Bottleneck, [3,8,36,3])
+
+
+# In[6]:
+
+
+def train(model, device, train_loader, optimizer, cross_entropy, epoch, isSam):
     model.train()
     train_loss = 0
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -221,9 +334,18 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
         optimizer.zero_grad()
         output = model(data)
 #         loss = F.nll_loss(output, target)
-        loss = criterion(output, target)
+        loss = cross_entropy(output, target)
         loss.backward()
+        
         optimizer.step()
+        
+#         if isSam:
+#             optimizer.first_step(zero_grad=True)
+#             cross_entropy(model(data), target).mean().backward()
+#             optimizer.second_step(zero_grad=True)
+#         else:
+#             optimizer.step()
+        
         train_loss += loss.item() * data.size(0)
         
         if batch_idx % 20 == 0:
@@ -232,7 +354,7 @@ def train(model, device, train_loader, optimizer, criterion, epoch):
                 100. * batch_idx / len(train_loader), loss.item()))
     return loss.item()
        
-def validate(model, device, validation_loader, criterion):
+def validate(model, device, validation_loader, cross_entropy):
     model.eval()
     valid_loss = 0
     correct = 0
@@ -241,7 +363,7 @@ def validate(model, device, validation_loader, criterion):
             data, target = data.to(device), target.to(device)
             output = model(data)
 #             valid_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
-            valid_loss += criterion(output, target).item() * data.size(0)
+            valid_loss += cross_entropy(output, target).item() * data.size(0)
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
     valid_loss /= len(validation_loader.dataset)
@@ -269,7 +391,7 @@ def test(model, device, test_loader):
     torch.save(model.state_dict(), 'model.ckpt')    
 
 
-# In[ ]:
+# In[7]:
 
 
 test_path = r'data/data1/test/'
@@ -285,7 +407,7 @@ for images, labels in test_loader:
     print(labels.size(0), ' = ', total)
 
 
-# In[ ]:
+# In[8]:
 
 
 train_path = r'data/data1/train/'
@@ -299,7 +421,7 @@ for batch_idx, (data, target) in enumerate(train_loader):
     counter += 1
 
 
-# In[ ]:
+# In[9]:
 
 
 def loadDatabase():
@@ -312,9 +434,21 @@ def loadDatabase():
 
     train_data, validation_data = train_test_split(train_labels, stratify=train_labels.label, test_size=0.1)
     
-    train_data = MyDataset(train_data, train_path, transforms.ToTensor() )
-    validation_data = MyDataset(validation_data, train_path, transforms.ToTensor() )
-    test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
+    train_transform = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+    test_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    
+    train_data = MyDataset(train_data, train_path, train_transform )
+    validation_data = MyDataset(validation_data, train_path, train_transform )
+    test_data = MyDataset(test_labels, test_path, test_transform )
 
 
     train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
@@ -322,38 +456,42 @@ def loadDatabase():
     test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
     
     return train_loader, validation_loader, test_loader
-    
-def main():
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
 
-    train_loader, validation_loader, test_loader = loadDatabase()
 
-    model = ResNet().to(device)
-    
-    optimizer = torch.optim.Adam(model.parameters(),lr = 0.001)
-    criterion = nn.CrossEntropyLoss()
+# In[ ]:
 
-    counter, train_losses, valid_losses = [], [], []
 
-    for epoch in range(1, 2 + 1):
-        
-        train_losses.append( train(model, device, train_loader, optimizer, criterion, epoch) )
-        valid_losses.append( validate(model, device, validation_loader, criterion) )
-        counter.append(epoch)
-    
-    plt.figure(figsize=(9, 6))
-    plt.ylabel("Loss")
-    plt.xlabel("Number of Epochs")
-    plt.plot(counter, train_losses, "r", label = "Train loss")
-    plt.plot(counter, valid_losses, "b", label = "Validation loss")
-    plt.title("Loss")
-    plt.show()
-    
-    test(model, device, test_loader)
-    
-if __name__ == '__main__':
-    main()
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if use_cuda else "cpu")
+
+train_loader, validation_loader, test_loader = loadDatabase()
+
+model = ResNet().to(device)
+
+cross_entropy = nn.CrossEntropyLoss()
+
+adam_optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay = 0.0001)
+sam_optimizer = SAM(model.parameters(), torch.optim.SGD, lr=0.001, momentum=0.9)
+adadelta_optimizer = torch.optim.Adadelta(model.parameters(), lr=0.001)
+sgd_optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=5e-4)
+
+counter, train_losses, valid_losses = [], [], []
+
+for epoch in range(1, 10 + 1):
+
+    train_losses.append( train(model, device, train_loader, adam_optimizer, cross_entropy, epoch, False) )
+    valid_losses.append( validate(model, device, validation_loader, cross_entropy) )
+    counter.append(epoch)
+
+plt.figure(figsize=(9, 6))
+plt.ylabel("Loss")
+plt.xlabel("Number of Epochs")
+plt.plot(counter, train_losses, "r", label = "Train loss")
+plt.plot(counter, valid_losses, "b", label = "Validation loss")
+plt.title("Loss")
+plt.show()
+
+test(model, device, test_loader)
 
 
 # In[ ]:
