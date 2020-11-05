@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 # -*- coding: utf-8 -*-
@@ -35,43 +35,55 @@ import importlib
 from sam.sam import *
 
 
-# In[2]:
+# In[ ]:
 
 
 def findFiles(path): return glob.glob(path)
 
-def createLabels(path, outputFile, isTrain):
-    classes = ['airplane', 'bird', 'dog', 'frog', 'horse']
+def createLabels(path, outputFile, isData1, isTrain):
+    classes1 = ['airplane', 'bird', 'dog', 'frog', 'horse']
+    classes2_test = ['apple', 'strawberry', 'kiwi', 'lemon', 'grape']
+    classes2_train = ['Apple Red 1', 'Strawberry', 'Kiwi', 'Lemon', 'Grape']
+    
     df = pd.DataFrame(columns=['id', 'label'])
     
-#     print(findFiles(path + '*.png'))
-    # for i, class in enumerate(classes):
-    
-    for filename in findFiles(path + '/*.png'):
-        
-        file = os.path.basename(filename)
-        img_class = os.path.basename(filename).split('_')[1].split('.')[0]
-        
-        if isTrain:
-            file = os.path.basename(os.path.dirname(filename)) + '/' + file
-        
-        df = df.append({'id': file, 'label': classes.index(img_class)}, ignore_index=True)
+    if isData1:
+        for filename in findFiles(path + '/*.png'):
+            file = os.path.basename(filename)
+            img_class = os.path.basename(filename).split('_')[1].split('.')[0]
 
+            if isTrain:
+                file = os.path.basename(os.path.dirname(filename)) + '/' + file
+
+            df = df.append({'id': file, 'label': classes1.index(img_class)}, ignore_index=True)
+    else:
+        print('isData1', isData1, path)
+        for filename in findFiles(path + '/*.jpg'):
+            file = os.path.basename(filename)
+            img_class = os.path.basename(os.path.dirname(filename))
+            file = img_class + '/' + file
+            
+            if isTrain: 
+                df = df.append({'id': file, 'label': classes2_train.index(img_class)}, ignore_index=True)
+            else:
+                df = df.append({'id': file, 'label': classes2_test.index(img_class)}, ignore_index=True)
+        
     df.to_csv(outputFile)
-#     return df
+
+createLabels(r'data/data1/train/*/', r'data/data1/train.csv', isData1=True, isTrain=True)
+createLabels(r'data/data1/test/', r'data/data1/test.csv', isData1=True, isTrain=False)
+
+createLabels(r'data/data2/train/*/', r'data/data2/train.csv', isData1=False, isTrain=True)
+createLabels(r'data/data2/test/*', r'data/data2/test.csv', isData1=False, isTrain=False)
 
 
-createLabels(r'data/data1/train/*/', r'data/data1/train.csv', True)
-createLabels(r'data/data1/test/', r'data/data1/test.csv', False)
-
-
-# In[3]:
+# In[ ]:
 
 
 # print(train_labels)
 
 
-# In[4]:
+# In[ ]:
 
 
 class MyDataset(Dataset):
@@ -96,39 +108,39 @@ class MyDataset(Dataset):
 # In[ ]:
 
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-#         declare layers here  [64, 3, 32, 32]
-#         self.conv1 = nn.Conv2d(3, 32, 3, 1)
-#         self.conv2 = nn.Conv2d(32, 64, 3, 1)
-#         self.fc1 = nn.Linear(5*5*64, 128)
-#         self.fc2 = nn.Linear(128, 10)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=10, kernel_size=3)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=3)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(720, 1024)
-        self.fc2 = nn.Linear(1024, 5)
+# class Net(nn.Module):
+#     def __init__(self):
+#         super(Net, self).__init__()
+# #         declare layers here  [64, 3, 32, 32]
+# #         self.conv1 = nn.Conv2d(3, 32, 3, 1)
+# #         self.conv2 = nn.Conv2d(32, 64, 3, 1)
+# #         self.fc1 = nn.Linear(5*5*64, 128)
+# #         self.fc2 = nn.Linear(128, 10)
+#         self.conv1 = nn.Conv2d(in_channels=3, out_channels=10, kernel_size=3)
+#         self.conv2 = nn.Conv2d(10, 20, kernel_size=3)
+#         self.conv2_drop = nn.Dropout2d()
+#         self.fc1 = nn.Linear(720, 1024)
+#         self.fc2 = nn.Linear(1024, 5)
 
-    def forward(self, x):
-        # define forward propagation here
-#         x = F.relu(self.conv1(x))
-#         x = F.max_pool2d(x, 2)
-#         x = F.relu(self.conv2(x))
-#         x = F.max_pool2d(x, 2)
-#         x = x.view(-1, 5*5*64)
-#         x = self.fc1(x)
+#     def forward(self, x):
+#         # define forward propagation here
+# #         x = F.relu(self.conv1(x))
+# #         x = F.max_pool2d(x, 2)
+# #         x = F.relu(self.conv2(x))
+# #         x = F.max_pool2d(x, 2)
+# #         x = x.view(-1, 5*5*64)
+# #         x = self.fc1(x)
+# #         x = self.fc2(x)
+#         x = F.relu(F.max_pool2d(self.conv1(x), 2))
+#         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+#         x = x.view(x.shape[0],-1)
+#         x = F.relu(self.fc1(x))
+#         x = F.dropout(x, training=self.training)
 #         x = self.fc2(x)
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(x.shape[0],-1)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+#         return F.log_softmax(x, dim=1)
 
 
-# In[11]:
+# In[ ]:
 
 
 class ResNetBasicBlock(nn.Module):
@@ -323,7 +335,7 @@ class ResNet(nn.Module):
 #     return ResNet(Bottleneck, [3,8,36,3])
 
 
-# In[6]:
+# In[ ]:
 
 
 def train(model, device, train_loader, optimizer, cross_entropy, epoch, isSam):
@@ -391,63 +403,78 @@ def test(model, device, test_loader):
     torch.save(model.state_dict(), 'model.ckpt')    
 
 
-# In[7]:
+# In[ ]:
 
 
-test_path = r'data/data1/test/'
-test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
-test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
-test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
-total = 0
-counter = 0
-for images, labels in test_loader:
-    counter += 1
-    print(counter)
-    total += labels.size(0)
-    print(labels.size(0), ' = ', total)
+# test_path = r'data/data1/test/'
+# test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+# test_data = MyDataset(test_labels, test_path, transforms.ToTensor() )
+# test_loader = DataLoader(test_data, batch_size=64, num_workers=0, shuffle=True)
+# total = 0
+# counter = 0
+# for images, labels in test_loader:
+#     counter += 1
+#     print(counter)
+#     total += labels.size(0)
+#     print(labels.size(0), ' = ', total)
 
 
-# In[8]:
+# In[ ]:
 
 
-train_path = r'data/data1/train/'
-train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
-train_data = MyDataset(train_labels, train_path, transforms.ToTensor() )
-train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
-total = 0
-counter = 0
-for batch_idx, (data, target) in enumerate(train_loader):
-#     print(counter, batch_idx)
-    counter += 1
+# train_path = r'data/data1/train/'
+# train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
+# train_data = MyDataset(train_labels, train_path, transforms.ToTensor() )
+# train_loader = DataLoader(train_data, batch_size=64, num_workers=0, shuffle=True)
+# total = 0
+# counter = 0
+# for batch_idx, (data, target) in enumerate(train_loader):
+# #     print(counter, batch_idx)
+#     counter += 1
 
 
-# In[9]:
+# In[ ]:
 
 
-def loadDatabase():
+def loadDatabase(isData1):
     
-    train_path = r'data/data1/train/'
-    test_path = r'data/data1/test/'
+    if isData1:
+        train_path = r'data/data1/train/'
+        test_path = r'data/data1/test/'
 
-    train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
-    test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+        train_labels = pd.read_csv(r'data/data1/train.csv', index_col=[0])
+        test_labels = pd.read_csv(r'data/data1/test.csv', index_col=[0])
+    else:
+        train_path = r'data/data2/train/'
+        test_path = r'data/data2/test/'
+
+        train_labels = pd.read_csv(r'data/data2/train.csv', index_col=[0])
+        test_labels = pd.read_csv(r'data/data2/test.csv', index_col=[0])
 
     train_data, validation_data = train_test_split(train_labels, stratify=train_labels.label, test_size=0.1)
     
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(20),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    
+    valid_transform = transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
     test_transform = transforms.Compose([
+        transforms.Resize(32),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
     
     train_data = MyDataset(train_data, train_path, train_transform )
-    validation_data = MyDataset(validation_data, train_path, train_transform )
+    validation_data = MyDataset(validation_data, train_path, valid_transform )
     test_data = MyDataset(test_labels, test_path, test_transform )
 
 
@@ -464,7 +491,7 @@ def loadDatabase():
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
 
-train_loader, validation_loader, test_loader = loadDatabase()
+train_loader, validation_loader, test_loader = loadDatabase(isData1=True)
 
 model = ResNet().to(device)
 
